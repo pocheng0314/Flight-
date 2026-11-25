@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>日本機票省錢精算＆比價戰情室</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f6fb; }
+    .card-shadow { box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 10px -6px rgba(15, 23, 42, 0.04); }
+    input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+  </style>
+</head>
+<body class="text-slate-800 pb-20">
+
+  <!-- 頂部導覽列 -->
+  <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white sticky top-0 z-30 shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="text-2xl">✈️</span>
+        <div>
+          <h1 class="text-lg md:text-xl font-black tracking-tight">日本機票省錢精算戰情室</h1>
+          <p class="text-xs text-indigo-200">內建航空資費速查 × 去回分開計價 × 傳航價差智慧推薦</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="copySummaryToClipboard()" class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs md:text-sm font-bold px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+          <span>📋</span> 複製比較表給旅伴
+        </button>
+        <button onclick="clearAllData()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-2 rounded-lg transition">
+          全部清空
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 mt-6 space-y-6">
+
+    <!-- 全域設定與一鍵快搜面板 -->
+    <section class="bg-white rounded-2xl p-5 card-shadow border border-slate-100">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+        <h2 class="font-bold text-slate-800 flex items-center gap-2 text-base">
+          <span class="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-black">1</span>
+          行程條件與一鍵查價傳送門
+        </h2>
+        <span class="text-xs text-slate-400">切換出發機場與目的地自動帶入該航線傳統航空基準價</span>
+      </div>
+
+      <!-- 第一排：出發機場、目的地、去回日期 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">台灣出發機場（決定基準價與快搜）</label>
+          <select id="originAirport" onchange="onRouteChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="TPE" selected>桃園機場 (TPE)</option>
+            <option value="KHH">高雄小港 (KHH)</option>
+            <option value="RMQ">台中清泉崗 (RMQ)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">日本目的地</label>
+          <select id="destCity" onchange="onRouteChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="OKA" selected>沖繩那霸 (OKA)</option>
+            <option value="TYO">東京成田/羽田 (TYO)</option>
+            <option value="KIX">大阪關西 (KIX)</option>
+            <option value="FUK">九州福岡 (FUK)</option>
+            <option value="CTS">北海道新千歲 (CTS)</option>
+            <option value="NGO">名古屋中部 (NGO)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">去程日期</label>
+          <input type="date" id="departDate" value="" onchange="syncDaysFromDates()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">回程日期</label>
+          <input type="date" id="returnDate" value="" onchange="syncDaysFromDates()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+      </div>
+
+      <!-- 第二排：人數、天數、傳航基準價 -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">同行總人數（未填預設 1 人）</label>
+          <div class="flex items-center">
+            <input type="number" id="travelers" value="" placeholder="1" min="1" max="20" oninput="recalculateAllCards()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <span class="ml-2 text-sm font-bold text-slate-500 shrink-0">人</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">預計旅遊總天數（選日期自動計算）</label>
+          <div class="flex items-center">
+            <input type="number" id="tripDays" value="" placeholder="例如 5" min="1" max="30" oninput="recalculateAllCards()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <span class="ml-2 text-sm font-bold text-slate-500 shrink-0">天</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-bold text-slate-500">傳統航空淡季基準價（自動帶入）</label>
+            <span id="benchmarkBadge" class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">桃園飛沖繩</span>
+          </div>
+          <div class="flex items-center">
+            <span class="mr-1.5 text-xs font-bold text-slate-400">NT$</span>
+            <input type="number" id="fscBenchmark" value="10500" step="500" oninput="recalculateAllCards()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- 一鍵跳轉查價列（自動對應上方選擇的出發機場） -->
+      <div class="bg-indigo-50/80 border border-indigo-100 rounded-xl p-3.5 mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-xs text-indigo-950">
+          <span class="font-black text-indigo-700">🔍 一鍵直達比價：</span>
+          選好上方機場、航點與日期後直接開啟搜尋：
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnGoogleSearch" onclick="openFlightSearch('google')" class="bg-white hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 text-xs font-bold px-3.5 py-1.5 rounded-lg transition shadow-sm">
+            Google Flights (桃園出發) ↗
+          </button>
+          <button id="btnSkySearch" onclick="openFlightSearch('skyscanner')" class="bg-white hover:bg-sky-600 hover:text-white text-sky-700 border border-sky-200 text-xs font-bold px-3.5 py-1.5 rounded-lg transition shadow-sm">
+            Skyscanner (桃園出發) ↗
+          </button>
+        </div>
+      </div>
+
+      <!-- 省錢策略快捷提示條 -->
+      <div class="bg-amber-50 border border-amber-200/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900">
+        <div class="flex items-center gap-2">
+          <span class="text-base">💡</span>
+          <span><strong>挑票黃金法則：</strong>若傳統航空與廉航（加完行李）總價差距在 <strong>NT$ 1,800（日航 NT$ 2,000）以內</strong>，系統會優先推薦體驗與保障更好的傳統航空！</span>
+        </div>
+        <button onclick="applySmartLuggageToAll()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg transition shrink-0">
+          一鍵設定廉航「去0回1」
+        </button>
+      </div>
+    </section>
+
+    <!-- 冠軍推薦橫幅 -->
+    <div id="winnerBanner" class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl p-4 md:p-5 shadow-lg flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="bg-white/20 p-2.5 rounded-xl text-2xl">🏆</div>
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-emerald-100">綜合真實成本、行李餐食與可玩時數最佳選擇</div>
+          <div id="winnerTitle" class="text-lg md:text-xl font-black mt-0.5">請在下方填入機票價格進行比較</div>
+          <div id="winnerReason" class="text-xs text-emerald-100 mt-0.5"></div>
+        </div>
+      </div>
+      <div id="winnerStats" class="text-right">
+        <div class="text-xs text-emerald-100">每人真實總成本（含行李＋服務費）</div>
+        <div id="winnerPrice" class="text-2xl font-black">NT$ 0</div>
+      </div>
+    </div>
+
+    <!-- 新增方案按鈕列 -->
+    <div class="flex items-center justify-between">
+      <h2 class="font-bold text-slate-800 flex items-center gap-2 text-base">
+        <span class="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-black">2</span>
+        航班方案並排精算（內建各航空行李與服務費速查）
+      </h2>
+      <button onclick="addOption()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-xl shadow transition flex items-center gap-1.5">
+        <span>＋</span> 新增空白方案
+      </button>
+    </div>
+
+    <!-- 方案卡片容器 -->
+    <div id="optionsContainer" class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <!-- 由 JS 動態生成 -->
+    </div>
+
+    <!-- 各航空行李與服務費速查總表 -->
+    <section class="bg-white rounded-2xl p-5 card-shadow border border-slate-100">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h3 class="font-bold text-slate-800 flex items-center gap-2 text-sm md:text-base">
+          <span>📊</span> 2026 台灣飛日本主要航空「行李＆服務費」行情速查表
+        </h3>
+        <span class="text-[11px] text-slate-400">供填寫時快速對照，實際以官網結帳為準</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+              <th class="p-2.5 font-bold rounded-tl-lg">航空公司</th>
+              <th class="p-2.5 font-bold">手提限重</th>
+              <th class="p-2.5 font-bold">單程 20kg 託運參考價</th>
+              <th class="p-2.5 font-bold rounded-tr-lg">訂位/刷卡服務費（每人來回）</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 text-slate-700">
+            <tr>
+              <td class="p-2.5 font-bold text-indigo-700">台灣虎航 (Tigerair)</td>
+              <td class="p-2.5">2件合計 10kg</td>
+              <td class="p-2.5 font-bold">約 NT$ 850～950 / 趟</td>
+              <td class="p-2.5">非旺季 NT$ 700（350×2）／旺季 NT$ 900（450×2）</td>
+            </tr>
+            <tr>
+              <td class="p-2.5 font-bold text-pink-700">樂桃航空 (Peach)</td>
+              <td class="p-2.5">2件合計 7kg</td>
+              <td class="p-2.5 font-bold">約 NT$ 930 / 趟（按件計）</td>
+              <td class="p-2.5">台灣出發免刷卡手續費（日本出發收 JPY 640）</td>
+            </tr>
+            <tr>
+              <td class="p-2.5 font-bold text-amber-700">酷航 (Scoot)</td>
+              <td class="p-2.5">2件合計 10kg</td>
+              <td class="p-2.5 font-bold">約 NT$ 925 / 趟（浮動）</td>
+              <td class="p-2.5">約 NT$ 400～450（視付款方式）</td>
+            </tr>
+            <tr>
+              <td class="p-2.5 font-bold text-orange-700">捷星日本 (Jetstar)</td>
+              <td class="p-2.5">2件合計 7kg</td>
+              <td class="p-2.5 font-bold">約 NT$ 850～950 / 趟</td>
+              <td class="p-2.5">約 NT$ 400～500</td>
+            </tr>
+            <tr>
+              <td class="p-2.5 font-bold text-emerald-700">日本航空 (JAL / 含越洋航空 JTA)</td>
+              <td class="p-2.5">10kg 內</td>
+              <td class="p-2.5 font-bold text-emerald-700">已內含 2件 × 23kg（共46kg）</td>
+              <td class="p-2.5 text-emerald-700">票價已全包（含選位、免費Wi-Fi、餐飲）</td>
+            </tr>
+            <tr>
+              <td class="p-2.5 font-bold text-emerald-700">華航 / 長榮 / 星宇 / 全日空</td>
+              <td class="p-2.5">7~10kg</td>
+              <td class="p-2.5 font-bold text-emerald-700">已內含 1件 23kg 託運</td>
+              <td class="p-2.5 text-emerald-700">票價已全包（含飛機餐＋選位）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast 提示 -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-xl opacity-0 pointer-events-none transition-opacity duration-300 z-50">
+    已複製到剪貼簿！
+  </div>
+
+  <script>
+    const airlinesCatalog = {
+      IT: {
+        name: "台灣虎航 (Tigerair)",
+        type: "LCC",
+        carryOn: "手提 2 件合計 10kg",
+        bagRef: 950,
+        feeRoundTrip: 700,
+        tip: "2026/9起訂位服務費：非旺季350/趟（來回700）、旺季450/趟（來回900）；20kg託運約850~950/趟。"
+      },
+      MM: {
+        name: "樂桃航空 (Peach)",
+        type: "LCC",
+        carryOn: "手提 2 件合計 7kg（嚴格秤重）",
+        bagRef: 930,
+        feeRoundTrip: 0,
+        tip: "託運採按件制（20kg內約NT$930/趟）；台灣官網刷卡免收手續費，若回程單買日幣計價才收JPY 640。"
+      },
+      TR: {
+        name: "酷航 (Scoot)",
+        type: "LCC",
+        carryOn: "手提 2 件合計 10kg",
+        bagRef: 925,
+        feeRoundTrip: 420,
+        tip: "訂票時預購20kg託運約NT$925/趟（開票後加購會漲至1,165）；手提額度高達10kg很適合不託運。"
+      },
+      GK: {
+        name: "捷星日本 (Jetstar)",
+        type: "LCC",
+        carryOn: "手提 2 件合計 7kg",
+        bagRef: 900,
+        feeRoundTrip: 450,
+        tip: "基本票手提僅7kg，20kg託運單程約NT$850~950，訂票刷卡手續費來回約NT$400~500。"
+      },
+      VZ: {
+        name: "泰越捷航空 (Thai Vietjet)",
+        type: "LCC",
+        carryOn: "手提 7kg",
+        bagRef: 950,
+        feeRoundTrip: 400,
+        tip: "飛沖繩/大阪常有促銷，20kg託運單程約NT$900~1,000，結帳會加收訂位服務費約NT$400。"
+      },
+      SL: {
+        name: "泰國獅子航空 (Thai Lion)",
+        type: "LCC",
+        carryOn: "手提 7kg",
+        bagRef: 900,
+        feeRoundTrip: 350,
+        tip: "飛東京/沖繩航線，20kg託運約NT$850~950/趟，訂票手續費約NT$350。"
+      },
+      AK: {
+        name: "亞洲航空 (AirAsia)",
+        type: "LCC",
+        carryOn: "手提 2 件合計 7kg",
+        bagRef: 950,
+        feeRoundTrip: 400,
+        tip: "20kg託運單程約NT$900~1,000，訂票時一起加購最划算。"
+      },
+      JL: {
+        name: "日本航空 (JAL / 含越洋航空 JTA)",
+        type: "FSC",
+        carryOn: "手提 10kg 內",
+        bagRef: 0,
+        feeRoundTrip: 0,
+        tip: "含旗下日本越洋航空(JTA)執飛沖繩航班：免費託運直接給到 2 件 × 23kg（共46kg）、免費選位與機上免費Wi-Fi。"
+      },
+      CI: {
+        name: "中華航空 (China Airlines)",
+        type: "FSC",
+        carryOn: "手提 7kg + 隨身包",
+        bagRef: 0,
+        feeRoundTrip: 0,
+        tip: "票價已內含 1 件 23kg 託運行李、機上餐點與標準選位，無額外手續費。"
+      },
+      BR: {
+        name: "長榮航空 (EVA Air)",
+        type: "FSC",
+        carryOn: "手提 7kg + 隨身包",
+        bagRef: 0,
+        feeRoundTrip: 0,
+        tip: "票價已內含 1 件 23kg 託運行李與機上餐點（基本票種預先選位可能需加價）。"
+      },
+      JX: {
+        name: "星宇航空 (STARLUX)",
+        type: "FSC",
+        carryOn: "手提 7kg + 隨身包",
+        bagRef: 0,
+        feeRoundTrip: 0,
+        tip: "票價已內含 1 件 23kg 託運行李、機上餐點與免費機上Wi-Fi（傳文字訊息）。"
+      },
+      NH: {
+        name: "全日空 (ANA)",
+        type: "FSC",
+        carryOn: "手提 10kg 內",
+        bagRef: 0,
+        feeRoundTrip: 0,
+        tip: "票價已內含 1～2 件 23kg 託運行李（依艙等而定）與日式機上餐點。"
+      },
+      CX: {
+        name: "國泰航空 (Cathay Pacific)",
+        type: "FSC",
+        carryOn: "手提 7kg + 隨身包",
+        bagRef: 0,
+        feeRoundTrip: 0,
+        tip: "台北飛東京/大阪/名古屋第五航權直飛，已內含 1 件 23kg 託運與餐點。"
+      }
+    };
+
+    const fscBenchmarkTable = {
+      OKA: { TPE: 10500, RMQ: 11000, KHH: 11200, destName: "沖繩" },
+      TYO: { TPE: 13800, RMQ: 14500, KHH: 14800, destName: "東京" },
+      KIX: { TPE: 13200, RMQ: 13800, KHH: 14200, destName: "大阪" },
+      FUK: { TPE: 12200, RMQ: 12800, KHH: 13000, destName: "福岡" },
+      CTS: { TPE: 17500, RMQ: 18200, KHH: 18500, destName: "北海道" },
+      NGO: { TPE: 12800, RMQ: 13500, KHH: 13800, destName: "名古屋" }
+    };
+
+    const originLabels = {
+      TPE: "桃園",
+      KHH: "高雄",
+      RMQ: "台中"
+    };
+
+    function createBlankOption(id) {
+      return {
+        id: id,
+        airlineCode: "",
+        returnAirlineCode: "",
+        airlineType: "LCC",
+        note: "",
+        splitTicket: false,
+        priceSource: "aggregator",
+        outFare: "",
+        inFare: "",
+        bookingFee: "",
+        outBagCount: "",
+        outBagPrice: "",
+        inBagCount: "",
+        inBagPrice: "",
+        outTime: "",
+        outArrTime: "",
+        inTime: "",
+        inArrTime: "",
+        hotelAdjustment: ""
+      };
+    }
+
+    let options = JSON.parse(localStorage.getItem('jp_flight_options_v14')) || [createBlankOption(1)];
+
+    function getOptionDisplayName(opt, index) {
+      const outName = airlinesCatalog[opt.airlineCode]?.name || `方案 ${index + 1}（未選航空）`;
+      let baseName = outName;
+      if (opt.splitTicket && opt.returnAirlineCode && opt.returnAirlineCode !== opt.airlineCode) {
+        const inName = airlinesCatalog[opt.returnAirlineCode]?.name || "";
+        if (inName) baseName = `去:${outName.split(' ')[0]} / 回:${inName.split(' ')[0]}`;
+      }
+      return opt.note && opt.note.trim() ? `${baseName}（${opt.note.trim()}）` : baseName;
+    }
+
+    function updateSearchButtonLabels(origin) {
+      const label = originLabels[origin] || "桃園";
+      document.getElementById('btnGoogleSearch').textContent = `Google Flights (${label}出發) ↗`;
+      document.getElementById('btnSkySearch').textContent = `Skyscanner (${label}出發) ↗`;
+    }
+
+    function onRouteChange(silent = false) {
+      const origin = document.getElementById('originAirport').value;
+      const dest = document.getElementById('destCity').value;
+      const entry = fscBenchmarkTable[dest];
+      updateSearchButtonLabels(origin);
+
+      if (entry) {
+        const autoPrice = entry[origin] || entry.TPE;
+        const routeTag = `${originLabels[origin]}飛${entry.destName}`;
+        document.getElementById('fscBenchmark').value = autoPrice;
+        document.getElementById('benchmarkBadge').textContent = routeTag;
+        if (!silent) {
+          showToast(`✨ 已切換為「${routeTag}」傳統航空基準價 NT$ ${autoPrice.toLocaleString()}`);
+        }
+      }
+      recalculateAllCards();
+    }
+
+    function loadGlobalSettings() {
+      const saved = JSON.parse(localStorage.getItem('jp_flight_global_v14'));
+      if (saved) {
+        document.getElementById('originAirport').value = saved.originAirport || 'TPE';
+        document.getElementById('destCity').value = saved.destCity || 'OKA';
+        document.getElementById('departDate').value = saved.departDate || '';
+        document.getElementById('returnDate').value = saved.returnDate || '';
+        document.getElementById('travelers').value = saved.travelers || '';
+        document.getElementById('tripDays').value = saved.tripDays || '';
+        updateSearchButtonLabels(saved.originAirport || 'TPE');
+
+        if (saved.fscBenchmark !== undefined && saved.fscBenchmark !== '') {
+          document.getElementById('fscBenchmark').value = saved.fscBenchmark;
+          const entry = fscBenchmarkTable[saved.destCity || 'OKA'];
+          if (entry) {
+            document.getElementById('benchmarkBadge').textContent = `${originLabels[saved.originAirport || 'TPE']}飛${entry.destName}`;
+          }
+        } else {
+          onRouteChange(true);
+        }
+      } else {
+        onRouteChange(true);
+      }
+    }
+
+    function saveAll() {
+      localStorage.setItem('jp_flight_options_v14', JSON.stringify(options));
+      localStorage.setItem('jp_flight_global_v14', JSON.stringify({
+        originAirport: document.getElementById('originAirport').value,
+        destCity: document.getElementById('destCity').value,
+        departDate: document.getElementById('departDate').value,
+        returnDate: document.getElementById('returnDate').value,
+        travelers: document.getElementById('travelers').value,
+        tripDays: document.getElementById('tripDays').value,
+        fscBenchmark: document.getElementById('fscBenchmark').value
+      }));
+    }
+
+    function syncDaysFromDates() {
+      const d1 = new Date(document.getElementById('departDate').value);
+      const d2 = new Date(document.getElementById('returnDate').value);
+      if (!isNaN(d1) && !isNaN(d2) && d2 >= d1) {
+        const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+        document.getElementById('tripDays').value = diffDays;
+      }
+      recalculateAllCards();
+    }
+
+    function openFlightSearch(provider) {
+      const origin = document.getElementById('originAirport').value;
+      const dest = document.getElementById('destCity').value;
+      const dDate = document.getElementById('departDate').value;
+      const rDate = document.getElementById('returnDate').value;
+
+      if (!dDate || !rDate) {
+        showToast("⚠️ 請先選擇去程與回程日期！");
+        return;
+      }
+
+      let url = "";
+      if (provider === 'google') {
+        const query = encodeURIComponent(`Flights from ${origin} to ${dest} on ${dDate} through ${rDate} nonstop`);
+        url = `https://www.google.com/travel/flights?q=${query}&curr=TWD&hl=zh-TW`;
+      } else {
+        const dShort = dDate.replace(/-/g, '').slice(2);
+        const rShort = rDate.replace(/-/g, '').slice(2);
+        url = `https://www.skyscanner.com.tw/transport/flights/${origin.toLowerCase()}/${dest.toLowerCase()}/${dShort}/${rShort}/?currency=TWD`;
+      }
+      window.open(url, '_blank');
+    }
+
+    function estimatePlayHours(tripDays, outArrTime, inTime) {
+      if (!tripDays || tripDays < 1 || !outArrTime || !inTime) return null;
+      const [arrH, arrM] = outArrTime.split(':').map(Number);
+      const [depH, depM] = inTime.split(':').map(Number);
+      if (isNaN(arrH) || isNaN(depH)) return null;
+
+      if (tripDays === 1) {
+        return Math.max(0, Math.round(((depH + depM / 60 - 2.5) - (arrH + arrM / 60 + 1.5)) * 10) / 10);
+      }
+      const firstDayPlay = Math.max(0, 22 - (arrH + arrM / 60 + 1.5));
+      const middleDaysPlay = Math.max(0, tripDays - 2) * 13;
+      const lastDayPlay = Math.max(0, (depH + depM / 60 - 2.5) - 9);
+      return Math.round((firstDayPlay + middleDaysPlay + lastDayPlay) * 10) / 10;
+    }
+
+    function calculateOptionMetrics(opt) {
+      const rawTravelers = parseInt(document.getElementById('travelers').value);
+      const travelers = (!isNaN(rawTravelers) && rawTravelers >= 1) ? rawTravelers : 1;
+
+      const rawTripDays = parseInt(document.getElementById('tripDays').value);
+      const tripDays = (!isNaN(rawTripDays) && rawTripDays >= 1) ? rawTripDays : null;
+
+      const rawBenchmark = parseInt(document.getElementById('fscBenchmark').value);
+      const fscBenchmark = (!isNaN(rawBenchmark) && rawBenchmark > 0) ? rawBenchmark : null;
+
+      const outFare = Number(opt.outFare) || 0;
+      const inFare = Number(opt.inFare) || 0;
+      const totalFare = outFare + inFare;
+
+      const bookingFee = opt.priceSource === 'official' ? 0 : (Number(opt.bookingFee) || 0);
+
+      const outBagCount = Number(opt.outBagCount) || 0;
+      const outBagPrice = Number(opt.outBagPrice) || 0;
+      const inBagCount = Number(opt.inBagCount) || 0;
+      const inBagPrice = Number(opt.inBagPrice) || 0;
+      const hotelAdjustment = Number(opt.hotelAdjustment) || 0;
+
+      const isAllFSC = opt.airlineType === 'FSC' && (!opt.splitTicket || !opt.returnAirlineCode || airlinesCatalog[opt.returnAirlineCode]?.type === 'FSC');
+      const totalOutBag = isAllFSC ? 0 : (outBagCount * outBagPrice);
+      const totalInBag = isAllFSC ? 0 : (inBagCount * inBagPrice);
+      const bagPerPerson = Math.round((totalOutBag + totalInBag) / travelers);
+
+      const trueCostPerPerson = totalFare + bookingFee + bagPerPerson + hotelAdjustment;
+
+      const playHours = estimatePlayHours(tripDays, opt.outArrTime, opt.inTime);
+      const costPerPlayHour = (playHours && playHours > 0 && totalFare > 0) ? Math.round(trueCostPerPerson / playHours) : null;
+
+      let fscValueCredit = 0;
+      if (isAllFSC) {
+        fscValueCredit = (opt.airlineCode === 'JL') ? 2000 : 1800;
+      }
+
+      // 產生清楚的託運行李規格說明文字（供複製比較表使用）
+      let baggageSummaryText = "";
+      if (isAllFSC) {
+        baggageSummaryText = (opt.airlineCode === 'JL')
+          ? "內含 2件×23kg（共46kg）＋手提10kg"
+          : "內含 1件×23kg＋手提7~10kg";
+      } else {
+        const carryInfo = airlinesCatalog[opt.airlineCode]?.carryOn || "手提7~10kg";
+        if (outBagCount === 0 && inBagCount === 0) {
+          baggageSummaryText = `無託運（僅${carryInfo}，NT$0）`;
+        } else {
+          baggageSummaryText = `去${outBagCount}件 / 回${inBagCount}件（加購20kg級，每人分攤NT$${bagPerPerson}）`;
+        }
+      }
+
+      const warnings = [];
+      if (fscBenchmark && totalFare > 0 && !isAllFSC && (fscBenchmark - trueCostPerPerson) > 0 && (fscBenchmark - trueCostPerPerson) <= 1800) {
+        warnings.push(`💡 與傳航基準價差僅 NT$${fscBenchmark - trueCostPerPerson}，建議直上傳統航空！`);
+      }
+      if (totalFare > 0 && !isAllFSC && outBagCount === 0 && inBagCount === 0) {
+        const carryLimit = airlinesCatalog[opt.airlineCode]?.carryOn || "手提 7~10kg";
+        warnings.push(`🎒 全程無託運：請留意規定（${carryLimit}）且無超量液體。`);
+      }
+
+      return {
+        travelers,
+        totalFare,
+        bookingFee,
+        bagPerPerson,
+        trueCostPerPerson,
+        playHours,
+        costPerPlayHour,
+        fscValueCredit,
+        baggageSummaryText,
+        warnings,
+        isAllFSC
+      };
+    }
+
+    function buildAirlineSelectOptions(selectedCode, placeholderText = "-- 請選擇航空公司 --") {
+      let html = `<option value="" ${!selectedCode ? 'selected' : ''}>${placeholderText}</option>`;
+      let lccHtml = '<optgroup label="── 廉價航空 (LCC) ──">';
+      let fscHtml = '<optgroup label="── 傳統航空 (含行李與餐點) ──">';
+      Object.entries(airlinesCatalog).forEach(([code, info]) => {
+        const optionTag = `<option value="${code}" ${selectedCode === code ? 'selected' : ''}>${info.name}</option>`;
+        if (info.type === 'LCC') lccHtml += optionTag;
+        else fscHtml += optionTag;
+      });
+      lccHtml += '</optgroup>';
+      fscHtml += '</optgroup>';
+      return html + lccHtml + fscHtml;
+    }
+
+    function onAirlineChange(id, newCode, isReturn = false) {
+      const opt = options.find(o => o.id === id);
+      if (!opt) return;
+      if (isReturn) {
+        opt.returnAirlineCode = newCode;
+      } else {
+        opt.airlineCode = newCode;
+        const info = airlinesCatalog[newCode];
+        opt.airlineType = info ? info.type : "LCC";
+      }
+      saveAll();
+      renderOptions();
+    }
+
+    function applyAirlineRefRates(id) {
+      const opt = options.find(o => o.id === id);
+      if (!opt || !opt.airlineCode) return;
+      const outInfo = airlinesCatalog[opt.airlineCode];
+      const inInfo = (opt.splitTicket && opt.returnAirlineCode) ? airlinesCatalog[opt.returnAirlineCode] : outInfo;
+
+      if (outInfo && outInfo.type === 'LCC') {
+        opt.outBagPrice = outInfo.bagRef;
+      }
+      if (inInfo && inInfo.type === 'LCC') {
+        opt.inBagPrice = inInfo.bagRef;
+      }
+      if (opt.priceSource === 'aggregator') {
+        const outFee = outInfo ? Math.round(outInfo.feeRoundTrip / 2) : 0;
+        const inFee = inInfo ? Math.round(inInfo.feeRoundTrip / 2) : 0;
+        opt.bookingFee = outFee + inFee;
+      }
+      saveAll();
+      renderOptions();
+      showToast("✨ 已代入該航空的參考行李單價與服務費！");
+    }
+
+    function duplicateOption(id) {
+      const source = options.find(o => o.id === id);
+      if (!source) return;
+      const newId = options.length > 0 ? Math.max(...options.map(o => o.id)) + 1 : 1;
+      const copy = JSON.parse(JSON.stringify(source));
+      copy.id = newId;
+      copy.note = copy.note ? `${copy.note} (複製)` : "方案對照";
+      options.push(copy);
+      saveAll();
+      renderOptions();
+      showToast("📋 已複製此方案卡片，可直接修改條件對照！");
+    }
+
+    function recalculateAllCards() {
+      saveAll();
+      const rawTravelers = parseInt(document.getElementById('travelers').value);
+      const travelers = (!isNaN(rawTravelers) && rawTravelers >= 1) ? rawTravelers : 1;
+
+      let bestOption = null;
+      let bestScore = Infinity;
+
+      const evaluated = options.map((opt, idx) => {
+        const metrics = calculateOptionMetrics(opt);
+        if (metrics.totalFare > 0) {
+          const timeBonus = metrics.playHours ? (metrics.playHours * 45) : 0;
+          const compositeScore = metrics.trueCostPerPerson - timeBonus - metrics.fscValueCredit;
+          if (compositeScore < bestScore) {
+            bestScore = compositeScore;
+            bestOption = { opt, metrics, idx };
+          }
+        }
+        return { opt, metrics };
+      });
+
+      if (bestOption) {
+        const timeText = bestOption.metrics.playHours !== null ? `（實玩約 ${bestOption.metrics.playHours} 小時）` : '';
+        document.getElementById('winnerTitle').textContent = `${getOptionDisplayName(bestOption.opt, bestOption.idx)}${timeText}`;
+        document.getElementById('winnerPrice').textContent = `NT$ ${bestOption.metrics.trueCostPerPerson.toLocaleString()} / 人`;
+
+        const reasonEl = document.getElementById('winnerReason');
+        if (bestOption.metrics.isAllFSC) {
+          const creditText = bestOption.opt.airlineCode === 'JL'
+            ? "價差在 NT$ 2,000 內，內含 46kg 雙件託運、選位與免費 Wi-Fi，直上日航最划算！"
+            : "價差在 NT$ 1,800 內，內含 23kg 託運、選位與機上餐點，直上傳統航空最划算！";
+          reasonEl.textContent = `✨ ${creditText}`;
+        } else {
+          reasonEl.textContent = "💰 即使加計行李與服務費仍具備顯著價差優勢，省錢首選！";
+        }
+      } else {
+        document.getElementById('winnerTitle').textContent = "請在下方填入機票價格進行比較";
+        document.getElementById('winnerReason').textContent = "";
+        document.getElementById('winnerPrice').textContent = "NT$ 0";
+      }
+
+      evaluated.forEach(({ opt, metrics }, index) => {
+        const isWinner = bestOption && bestOption.opt.id === opt.id;
+        const cardEl = document.getElementById(`card-${opt.id}`);
+        if (!cardEl) return;
+
+        cardEl.className = `bg-white rounded-2xl p-5 card-shadow border-2 transition relative flex flex-col justify-between ${isWinner ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-100'}`;
+        const badgeEl = document.getElementById(`badge-${opt.id}`);
+        if (badgeEl) {
+          badgeEl.innerHTML = isWinner
+            ? '<span class="bg-emerald-500 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full">🏆 最佳推薦</span>'
+            : `<span class="bg-slate-100 text-slate-500 text-[11px] font-bold px-2.5 py-0.5 rounded-full">方案 ${index + 1}</span>`;
+        }
+
+        const fareTotalEl = document.getElementById(`fare-total-${opt.id}`);
+        if (fareTotalEl) {
+          fareTotalEl.textContent = `機票合計 NT$ ${metrics.totalFare.toLocaleString()}`;
+        }
+
+        const bagLabelEl = document.getElementById(`bag-label-${opt.id}`);
+        if (bagLabelEl) {
+          bagLabelEl.textContent = `🧳 全團託運行李（共 ${travelers} 人分攤）`;
+        }
+        const bagPerEl = document.getElementById(`bag-per-${opt.id}`);
+        if (bagPerEl) {
+          bagPerEl.textContent = `每人分攤 NT$ ${metrics.bagPerPerson}`;
+        }
+
+        const warnEl = document.getElementById(`warnings-${opt.id}`);
+        if (warnEl) {
+          warnEl.innerHTML = metrics.warnings.map(w => `<div class="text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-2.5 py-1.5 leading-snug">${w}</div>`).join('');
+        }
+
+        const playHoursEl = document.getElementById(`play-hours-${opt.id}`);
+        if (playHoursEl) {
+          if (metrics.playHours !== null) {
+            playHoursEl.textContent = metrics.costPerPlayHour !== null
+              ? `${metrics.playHours} hr（NT$${metrics.costPerPlayHour}/hr）`
+              : `${metrics.playHours} hr`;
+          } else {
+            playHoursEl.textContent = "填寫天數與起降時間後自動計算";
+          }
+        }
+
+        const groupTotalEl = document.getElementById(`group-total-${opt.id}`);
+        if (groupTotalEl) groupTotalEl.textContent = `全團 ${travelers} 人共 NT$ ${(metrics.trueCostPerPerson * travelers).toLocaleString()}`;
+
+        const trueCostEl = document.getElementById(`true-cost-${opt.id}`);
+        if (trueCostEl) trueCostEl.textContent = `NT$ ${metrics.trueCostPerPerson.toLocaleString()}`;
+      });
+    }
+
+    function renderOptions() {
+      const container = document.getElementById('optionsContainer');
+      const rawTravelers = parseInt(document.getElementById('travelers').value);
+      const travelers = (!isNaN(rawTravelers) && rawTravelers >= 1) ? rawTravelers : 1;
+      container.innerHTML = '';
+
+      options.forEach((opt, index) => {
+        const metrics = calculateOptionMetrics(opt);
+        const info = airlinesCatalog[opt.airlineCode];
+        const isJAL = opt.airlineCode === 'JL';
+        const card = document.createElement('div');
+        card.id = `card-${opt.id}`;
+        card.className = `bg-white rounded-2xl p-5 card-shadow border-2 border-slate-100 transition relative flex flex-col justify-between`;
+
+        card.innerHTML = `
+          <div>
+            <!-- 頂部標籤、複製與刪除 -->
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="flex items-center gap-1.5">
+                <span id="badge-${opt.id}"><span class="bg-slate-100 text-slate-500 text-[11px] font-bold px-2.5 py-0.5 rounded-full">方案 ${index + 1}</span></span>
+                ${opt.airlineCode ? `
+                  <span class="text-[11px] font-bold px-2 py-0.5 rounded-md ${!metrics.isAllFSC ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'}">
+                    ${!metrics.isAllFSC ? '廉價航空' : '傳統航空'}
+                  </span>
+                ` : ''}
+              </div>
+              <div class="flex items-center gap-1">
+                <button onclick="duplicateOption(${opt.id})" title="複製此方案進行微調比較" class="text-indigo-600 hover:bg-indigo-50 text-xs font-bold px-2 py-1 rounded-lg transition">📋 複製</button>
+                ${options.length > 1 ? `<button onclick="removeOption(${opt.id})" class="text-slate-400 hover:text-rose-500 text-xs font-bold px-1.5 py-1">✕</button>` : ''}
+              </div>
+            </div>
+
+            <!-- 買法組合 -->
+            <div class="mb-2.5">
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">買法組合</label>
+              <select onchange="updateSelectFieldAndRerender(${opt.id}, 'splitTicket', this.value === 'true')" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold">
+                <option value="false" ${!opt.splitTicket ? 'selected' : ''}>來回同家航空</option>
+                <option value="true" ${opt.splitTicket ? 'selected' : ''}>去回程單程拆買</option>
+              </select>
+            </div>
+
+            <!-- 航空公司下拉選單（支援拆買雙選單） -->
+            <div class="mb-2.5 space-y-2">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">${opt.splitTicket ? '去程航空公司' : '選擇航空公司'}</label>
+                <select onchange="onAirlineChange(${opt.id}, this.value, false)" class="w-full font-black text-slate-800 text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  ${buildAirlineSelectOptions(opt.airlineCode)}
+                </select>
+              </div>
+              ${opt.splitTicket ? `
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-500 mb-1">回程航空公司</label>
+                  <select onchange="onAirlineChange(${opt.id}, this.value, true)" class="w-full font-black text-slate-800 text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    ${buildAirlineSelectOptions(opt.returnAirlineCode, "-- 選擇回程航空 --")}
+                  </select>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- 該航空資費速查小卡 -->
+            ${info ? `
+              <div class="bg-sky-50/80 border border-sky-200/80 rounded-xl p-2.5 mb-2.5 text-[11px] text-sky-950">
+                <div class="flex items-center justify-between gap-1 mb-1">
+                  <span class="font-black text-sky-800">📌 ${info.name.split(' ')[0]} 資費速查</span>
+                  ${info.type === 'LCC' ? `
+                    <button type="button" onclick="applyAirlineRefRates(${opt.id})" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-2 py-0.5 rounded text-[10px] transition">
+                      一鍵代入參考行李/服務費
+                    </button>
+                  ` : ''}
+                </div>
+                <p class="text-sky-800/90 leading-snug">${info.tip}</p>
+              </div>
+            ` : ''}
+
+            <!-- 簡短備註欄 -->
+            <div class="mb-3">
+              <input type="text" value="${opt.note || ''}" placeholder="備註標籤（選填，如：早去晚回、官網促銷）" oninput="updateTextField(${opt.id}, 'note', this.value)" class="w-full text-xs text-slate-600 bg-slate-50/70 border border-slate-200/80 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- 報價來源切換（防手續費重複計算） -->
+            <div class="mb-2.5">
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">票價數字來源（避免重複算服務費）</label>
+              <select onchange="updateSelectFieldAndRerender(${opt.id}, 'priceSource', this.value)" class="w-full bg-indigo-50/60 border border-indigo-200/80 text-indigo-900 rounded-lg px-2.5 py-1.5 text-xs font-bold">
+                <option value="aggregator" ${opt.priceSource === 'aggregator' ? 'selected' : ''}>Google Flights / 比價網報價（需另加服務費）</option>
+                <option value="official" ${opt.priceSource === 'official' ? 'selected' : ''}>航空公司官網結帳總計（已內含稅與服務費）</option>
+              </select>
+            </div>
+
+            <!-- 去程＋回程含稅價分開輸入 -->
+            <div class="bg-slate-50 rounded-xl p-2.5 mb-3 border border-slate-200/80">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-bold text-slate-600">每人含稅機票（可分開填或只填來回總價）</span>
+                <span id="fare-total-${opt.id}" class="text-[11px] font-black text-indigo-600">機票合計 NT$ ${metrics.totalFare.toLocaleString()}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 mb-2">
+                <div>
+                  <input type="number" value="${opt.outFare}" placeholder="去程或來回總價" step="100" oninput="updateRawNumberField(${opt.id}, 'outFare', this.value)" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-700">
+                </div>
+                <div>
+                  <input type="number" value="${opt.inFare}" placeholder="回程票價（選填）" step="100" oninput="updateRawNumberField(${opt.id}, 'inFare', this.value)" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-bold text-indigo-700">
+                </div>
+              </div>
+
+              ${opt.priceSource === 'aggregator' && !metrics.isAllFSC ? `
+                <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200/70">
+                  <label class="text-[11px] font-bold text-slate-500 shrink-0">來回訂位/刷卡服務費</label>
+                  <input type="number" value="${opt.bookingFee}" placeholder="如 700" step="50" oninput="updateRawNumberField(${opt.id}, 'bookingFee', this.value)" class="w-28 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-right">
+                </div>
+              ` : `
+                <div class="text-[11px] text-emerald-700 font-bold pt-1 border-t border-slate-200/70">
+                  ✓ 服務費：NT$ 0（已內含於票價或傳統航空全包）
+                </div>
+              `}
+            </div>
+
+            <!-- 託運行李分攤區塊（僅廉航顯示） -->
+            ${!metrics.isAllFSC ? `
+              <div class="bg-slate-50 rounded-xl p-3 mb-3 border border-slate-200/80">
+                <div class="flex items-center justify-between mb-2">
+                  <span id="bag-label-${opt.id}" class="text-xs font-bold text-slate-700">🧳 全團託運行李（共 ${travelers} 人分攤）</span>
+                  <span id="bag-per-${opt.id}" class="text-[11px] font-bold text-indigo-600">每人分攤 NT$ ${metrics.bagPerPerson}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="bg-white p-2 rounded-lg border border-slate-100">
+                    <div class="text-slate-400 font-bold mb-1">去程件數 × 單價</div>
+                    <div class="flex items-center gap-1">
+                      <input type="number" value="${opt.outBagCount}" placeholder="0" min="0" max="10" oninput="updateRawNumberField(${opt.id}, 'outBagCount', this.value)" class="w-11 border border-slate-200 rounded px-1.5 py-1 font-bold text-center">
+                      <span>件×</span>
+                      <input type="number" value="${opt.outBagPrice}" placeholder="單價" step="50" oninput="updateRawNumberField(${opt.id}, 'outBagPrice', this.value)" class="w-16 border border-slate-200 rounded px-1.5 py-1 font-bold">
+                    </div>
+                  </div>
+                  <div class="bg-white p-2 rounded-lg border border-slate-100">
+                    <div class="text-slate-400 font-bold mb-1">回程件數 × 單價</div>
+                    <div class="flex items-center gap-1">
+                      <input type="number" value="${opt.inBagCount}" placeholder="0" min="0" max="10" oninput="updateRawNumberField(${opt.id}, 'inBagCount', this.value)" class="w-11 border border-slate-200 rounded px-1.5 py-1 font-bold text-center">
+                      <span>件×</span>
+                      <input type="number" value="${opt.inBagPrice}" placeholder="單價" step="50" oninput="updateRawNumberField(${opt.id}, 'inBagPrice', this.value)" class="w-16 border border-slate-200 rounded px-1.5 py-1 font-bold">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ` : `
+              <div class="bg-emerald-50/70 rounded-xl p-2.5 mb-3 border border-emerald-100 text-xs text-emerald-800 font-medium">
+                ${isJAL
+                  ? '✅ 日航（含越洋航空 JTA）已內含每人 2 件 × 23kg（共46kg）免費託運、選位與免費機上Wi-Fi。'
+                  : '✅ 傳統航空已內含每人 23kg 託運、手提行李與機上餐點。'}
+              </div>
+            `}
+
+            <!-- 航班時間與住宿調整 -->
+            <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+              <div class="bg-slate-50 p-2 rounded-lg border border-slate-200/70">
+                <span class="block text-[11px] font-bold text-slate-500 mb-1">🛫 去程起飛 → 抵達</span>
+                <div class="flex items-center gap-1">
+                  <input type="time" value="${opt.outTime}" onchange="updateSelectField(${opt.id}, 'outTime', this.value)" class="w-full bg-white border border-slate-200 rounded px-1 py-1 font-bold">
+                  <span>→</span>
+                  <input type="time" value="${opt.outArrTime}" onchange="updateSelectField(${opt.id}, 'outArrTime', this.value)" class="w-full bg-white border border-slate-200 rounded px-1 py-1 font-bold">
+                </div>
+              </div>
+              <div class="bg-slate-50 p-2 rounded-lg border border-slate-200/70">
+                <span class="block text-[11px] font-bold text-slate-500 mb-1">🛬 回程起飛 → 抵台</span>
+                <div class="flex items-center gap-1">
+                  <input type="time" value="${opt.inTime}" onchange="updateSelectField(${opt.id}, 'inTime', this.value)" class="w-full bg-white border border-slate-200 rounded px-1 py-1 font-bold">
+                  <span>→</span>
+                  <input type="time" value="${opt.inArrTime}" onchange="updateSelectField(${opt.id}, 'inArrTime', this.value)" class="w-full bg-white border border-slate-200 rounded px-1 py-1 font-bold">
+                </div>
+              </div>
+            </div>
+
+            <!-- 紅眼省住宿或晚回多住一晚調整 -->
+            <div class="mb-3">
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">住宿增減調整（選填，紅眼省1晚填負數如 -1500）</label>
+              <input type="number" value="${opt.hotelAdjustment}" placeholder="0" step="500" oninput="updateRawNumberField(${opt.id}, 'hotelAdjustment', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold">
+            </div>
+
+            <!-- 警示訊息區 -->
+            <div id="warnings-${opt.id}" class="space-y-1.5 mb-3"></div>
+          </div>
+
+          <!-- 底部總結算區 -->
+          <div class="pt-3 border-t-2 border-dashed border-slate-200 mt-2">
+            <div class="flex justify-between text-xs text-slate-500 mb-2">
+              <span>日本實玩時間（平均每小時成本）</span>
+              <span id="play-hours-${opt.id}" class="font-bold text-indigo-600">填寫天數與起降時間後自動計算</span>
+            </div>
+            <div class="bg-slate-900 text-white rounded-xl p-3 flex items-center justify-between">
+              <div>
+                <div class="text-[11px] text-slate-400">每人真實總成本</div>
+                <div id="group-total-${opt.id}" class="text-xs text-emerald-400 font-bold">全團 ${travelers} 人共 NT$ ${(metrics.trueCostPerPerson * travelers).toLocaleString()}</div>
+              </div>
+              <div id="true-cost-${opt.id}" class="text-xl font-black tracking-tight text-white">
+                NT$ ${metrics.trueCostPerPerson.toLocaleString()}
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      recalculateAllCards();
+    }
+
+    function updateTextField(id, field, value) {
+      const opt = options.find(o => o.id === id);
+      if (opt) {
+        opt[field] = value;
+        recalculateAllCards();
+      }
+    }
+
+    function updateRawNumberField(id, field, rawVal) {
+      const opt = options.find(o => o.id === id);
+      if (opt) {
+        opt[field] = rawVal === "" ? "" : Number(rawVal);
+        recalculateAllCards();
+      }
+    }
+
+    function updateSelectField(id, field, value) {
+      const opt = options.find(o => o.id === id);
+      if (opt) {
+        opt[field] = value;
+        recalculateAllCards();
+      }
+    }
+
+    function updateSelectFieldAndRerender(id, field, value) {
+      const opt = options.find(o => o.id === id);
+      if (opt) {
+        opt[field] = value;
+        saveAll();
+        renderOptions();
+      }
+    }
+
+    function addOption() {
+      const newId = options.length > 0 ? Math.max(...options.map(o => o.id)) + 1 : 1;
+      options.push(createBlankOption(newId));
+      saveAll();
+      renderOptions();
+    }
+
+    function removeOption(id) {
+      options = options.filter(o => o.id !== id);
+      saveAll();
+      renderOptions();
+    }
+
+    function applySmartLuggageToAll() {
+      options.forEach(opt => {
+        if (opt.airlineType === 'LCC') {
+          opt.outBagCount = 0;
+          opt.inBagCount = 1;
+        }
+      });
+      saveAll();
+      renderOptions();
+      showToast("✅ 已設定所有廉航為「去0件、回1件」（可點卡片上的藍色按鈕代入行李參考價）");
+    }
+
+    function clearAllData() {
+      document.getElementById('departDate').value = '';
+      document.getElementById('returnDate').value = '';
+      document.getElementById('travelers').value = '';
+      document.getElementById('tripDays').value = '';
+      options = [createBlankOption(1)];
+      onRouteChange(true);
+      renderOptions();
+      showToast("🧹 已清空填寫欄位（傳統航空基準價已保留）");
+    }
+
+    function copySummaryToClipboard() {
+      const rawTravelers = parseInt(document.getElementById('travelers').value);
+      const travelers = (!isNaN(rawTravelers) && rawTravelers >= 1) ? rawTravelers : 1;
+      const originLabel = originLabels[document.getElementById('originAirport').value] || '桃園';
+      const destText = document.getElementById('destCity').selectedOptions[0].text;
+      const dDate = document.getElementById('departDate').value || '未定';
+      const rDate = document.getElementById('returnDate').value || '未定';
+
+      let text = `✈️【${originLabel}出發 → ${destText} 機票真實成本比較表】\n📅 日期：${dDate} ~ ${rDate}（${travelers}人）\n------------------------\n`;
+      options.forEach((opt, i) => {
+        const m = calculateOptionMetrics(opt);
+        const timeStr = (opt.outTime && opt.inTime) ? `去 ${opt.outTime}-${opt.outArrTime || '?'} / 回 ${opt.inTime}-${opt.inArrTime || '?'}` : '未填寫時間';
+        const playStr = m.playHours !== null ? ` (實玩約${m.playHours}hr)` : '';
+        text += `${i + 1}. ${getOptionDisplayName(opt, i)}\n`;
+        text += `   • 時間：${timeStr}${playStr}\n`;
+        text += `   • 票價：NT$ ${m.totalFare.toLocaleString()}\n`;
+        text += `   • 行李：${m.baggageSummaryText}\n`;
+        text += `   👉 每人真實總價：NT$ ${m.trueCostPerPerson.toLocaleString()}\n\n`;
+      });
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("📋 比較表已複製！可直接貼到 LINE");
+      });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0');
+      setTimeout(() => toast.classList.add('opacity-0'), 2800);
+    }
+
+    // 初始化
+    loadGlobalSettings();
+    renderOptions();
+  </script>
+</body>
+</html>
